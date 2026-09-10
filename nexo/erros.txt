@@ -1,0 +1,40 @@
+
+> nexo@0.0.0 build
+> tsc -b && vite build
+
+src/pages/AdminPages.tsx(568,16): error TS2352: Conversion of type '{ id: any; nome: any; email: any; setor_id: any; cargo_id: any; ativo: any; setor: { nome: any; }[]; cargo: { nome: any; }[]; }[]' to type 'Pessoa[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; nome: any; email: any; setor_id: any; cargo_id: any; ativo: any; setor: { nome: any; }[]; cargo: { nome: any; }[]; }' is not comparable to type 'Pessoa'.
+    Types of property 'setor' are incompatible.
+      Property 'nome' is missing in type '{ nome: any; }[]' but required in type '{ nome: string; }'.
+src/pages/AdminPages.tsx(771,16): error TS2352: Conversion of type '{ id: any; setor_id: any; nome: any; descricao: any; ativo: any; setor: { nome: any; }[]; }[]' to type 'Processo[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; setor_id: any; nome: any; descricao: any; ativo: any; setor: { nome: any; }[]; }' is not comparable to type 'Processo'.
+    Types of property 'setor' are incompatible.
+      Property 'nome' is missing in type '{ nome: any; }[]' but required in type '{ nome: string; }'.
+src/pages/AdminPages.tsx(957,16): error TS2352: Conversion of type '{ id: any; setor_id: any; processo_id: any; nome: any; descricao: any; tipo: any; prioridade: any; tempo_estimado_minutos: any; exige_conferencia: any; exige_aprovacao: any; exige_evidencia: any; ativo: any; setor: { ...; }[]; processo: { ...; }[]; }[]' to type 'Operacao[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; setor_id: any; processo_id: any; nome: any; descricao: any; tipo: any; prioridade: any; tempo_estimado_minutos: any; exige_conferencia: any; exige_aprovacao: any; exige_evidencia: any; ativo: any; setor: { ...; }[]; processo: { ...; }[]; }' is not comparable to type 'Operacao'.
+    Types of property 'setor' are incompatible.
+      Property 'nome' is missing in type '{ nome: any; }[]' but required in type '{ nome: string; }'.
+src/pages/AdminPages.tsx(959,20): error TS2352: Conversion of type '{ id: any; setor_id: any; nome: any; descricao: any; ativo: any; setor: { nome: any; }[]; }[]' to type 'Processo[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; setor_id: any; nome: any; descricao: any; ativo: any; setor: { nome: any; }[]; }' is not comparable to type 'Processo'.
+    Types of property 'setor' are incompatible.
+      Property 'nome' is missing in type '{ nome: any; }[]' but required in type '{ nome: string; }'.
+src/pages/AdminPages.tsx(1279,16): error TS2352: Conversion of type '{ id: any; operacao_id: any; pessoa_id: any; papel: any; principal: any; ativo: any; operacao: { nome: any; empresa_id: any; }[]; pessoa: { nome: any; }[]; }[]' to type 'Responsabilidade[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; operacao_id: any; pessoa_id: any; papel: any; principal: any; ativo: any; operacao: { nome: any; empresa_id: any; }[]; pessoa: { nome: any; }[]; }' is not comparable to type 'Responsabilidade'.
+    Types of property 'operacao' are incompatible.
+      Property 'nome' is missing in type '{ nome: any; empresa_id: any; }[]' but required in type '{ nome: string; }'.
+src/pages/AdminPages.tsx(1280,20): error TS2352: Conversion of type '{ id: any; setor_id: any; processo_id: any; nome: any; descricao: any; tipo: any; prioridade: any; tempo_estimado_minutos: any; exige_conferencia: any; exige_aprovacao: any; exige_evidencia: any; ativo: any; setor: { ...; }[]; processo: { ...; }[]; }[]' to type 'Operacao[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; setor_id: any; processo_id: any; nome: any; descricao: any; tipo: any; prioridade: any; tempo_estimado_minutos: any; exige_conferencia: any; exige_aprovacao: any; exige_evidencia: any; ativo: any; setor: { ...; }[]; processo: { ...; }[]; }' is not comparable to type 'Operacao'.
+    Types of property 'setor' are incompatible.
+      Property 'nome' is missing in type '{ nome: any; }[]' but required in type '{ nome: string; }'.
+src/pages/AdminPages.tsx(1281,18): error TS2352: Conversion of type '{ id: any; nome: any; email: any; setor_id: any; cargo_id: any; ativo: any; setor: { nome: any; }[]; cargo: { nome: any; }[]; }[]' to type 'Pessoa[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; nome: any; email: any; setor_id: any; cargo_id: any; ativo: any; setor: { nome: any; }[]; cargo: { nome: any; }[]; }' is not comparable to type 'Pessoa'.
+    Types of property 'setor' are incompatible.
+      Property 'nome' is missing in type '{ nome: any; }[]' but required in type '{ nome: string; }'.
+src/pages/AdminPages.tsx(1493,16): error TS2352: Conversion of type '{ id: any; operacao_id: any; tipo_recorrencia: any; dia_semana: any; dia_mes: any; data_especifica: any; hora_prevista: any; prazo_minutos: any; sla_minutos: any; ativo: any; operacao: { nome: any; empresa_id: any; }[]; }[]' to type 'Recorrencia[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; operacao_id: any; tipo_recorrencia: any; dia_semana: any; dia_mes: any; data_especifica: any; hora_prevista: any; prazo_minutos: any; sla_minutos: any; ativo: any; operacao: { nome: any; empresa_id: any; }[]; }' is not comparable to type 'Recorrencia'.
+    Types of property 'operacao' are incompatible.
+      Property 'nome' is missing in type '{ nome: any; empresa_id: any; }[]' but required in type '{ nome: string; }'.
+src/pages/AdminPages.tsx(1494,20): error TS2352: Conversion of type '{ id: any; setor_id: any; processo_id: any; nome: any; descricao: any; tipo: any; prioridade: any; tempo_estimado_minutos: any; exige_conferencia: any; exige_aprovacao: any; exige_evidencia: any; ativo: any; setor: { ...; }[]; processo: { ...; }[]; }[]' to type 'Operacao[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ id: any; setor_id: any; processo_id: any; nome: any; descricao: any; tipo: any; prioridade: any; tempo_estimado_minutos: any; exige_conferencia: any; exige_aprovacao: any; exige_evidencia: any; ativo: any; setor: { ...; }[]; processo: { ...; }[]; }' is not comparable to type 'Operacao'.
+    Types of property 'setor' are incompatible.
+      Property 'nome' is missing in type '{ nome: any; }[]' but required in type '{ nome: string; }'.
