@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import OperacoesPage from './pages/OperacoesPage'
+import DemandasPage from './pages/DemandasPage'
 import Layout from './components/Layout'
 import type {
   DadosUsuario,
@@ -359,13 +360,8 @@ function App() {
         return <OperacoesPage usuario={usuario} /> 
       
       case 'demandas':
-        return (
-          <TelaBase
-            titulo="Demandas"
-            descricao="Solicitações e atividades não recorrentes"
-          />
-        )
-
+        return <DemandasPage usuario={usuario} />
+       
       case 'processos-geral':
         return (
           <TelaBase
