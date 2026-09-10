@@ -976,3 +976,22 @@ input {
     width: 100%;
   }
 }
+/* =========================================================
+   NEXO - CONSOLIDAÇÃO OPERACIONAL
+   ========================================================= */
+.nexo-five-cards { grid-template-columns: repeat(5, 1fr); }
+.nexo-kpi-grid { grid-template-columns: repeat(4, 1fr); }
+.nexo-quick-actions { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:22px; }
+.nexo-quick-actions button, .nexo-tabs button { border:1px solid #d1d5db; background:#fff; color:#374151; border-radius:8px; padding:10px 14px; font-weight:600; }
+.nexo-quick-actions button:hover, .nexo-tabs button:hover { background:#f3f4f6; }
+.nexo-tabs { display:flex; gap:8px; margin-bottom:20px; }
+.nexo-tabs button.active { background:#111827; color:#fff; border-color:#111827; }
+.nexo-grid-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:20px 22px; }
+.nexo-info-card { border:1px solid #e5e7eb; border-radius:10px; padding:16px; background:#fff; }
+.nexo-info-card h4 { margin:0 0 12px; }
+.nexo-info-card p { margin:6px 0; color:#4b5563; font-size:13px; }
+.nexo-muted { margin-top:4px; color:#9ca3af; font-size:12px; }
+.nexo-form-panel { margin-bottom:20px; }
+.nexo-pad { padding:20px 22px; }
+@media (max-width:1100px) { .nexo-five-cards, .nexo-kpi-grid { grid-template-columns:repeat(2,1fr); } .nexo-grid-cards { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:700px) { .nexo-five-cards, .nexo-kpi-grid, .nexo-grid-cards { grid-template-columns:1fr; } }
