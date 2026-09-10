@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { DadosUsuario } from '../types'
-import ChecklistConclusao from '../components/ChecklistConclusao'
 
 type Props = {
   usuario: DadosUsuario
@@ -112,6 +111,7 @@ const STATUS = [
   'AGUARDANDO_CONFERENCIA',
   'AGUARDANDO_APROVACAO',
   'BLOQUEADA',
+  'CONCLUIDA',
   'CANCELADA',
 ]
 
@@ -435,29 +435,6 @@ export default function OperacoesPage({ usuario }: Props) {
   async function alterarStatus(novoStatus: string) {
     if (!selecionada) return
 
-    if (novoStatus === 'CONCLUIDA') {
-      await concluirExecucao()
-      return
-    }
-
-    const exigeMotivo = [
-      'AGUARDANDO_INFORMACAO',
-      'AGUARDANDO_TERCEIRO',
-      'AGUARDANDO_CONFERENCIA',
-      'AGUARDANDO_APROVACAO',
-      'BLOQUEADA',
-      'CANCELADA',
-    ].includes(novoStatus)
-
-    const motivo = exigeMotivo
-      ? prompt('Informe o motivo desta alteração de status:')
-      : 'Alteração realizada pela tela operacional'
-
-    if (exigeMotivo && !motivo?.trim()) {
-      setMensagem('Informe o motivo para alterar para este status.')
-      return
-    }
-
     try {
       const statusAnterior = selecionada.status
       const agora = new Date().toISOString()
@@ -493,7 +470,7 @@ export default function OperacoesPage({ usuario }: Props) {
           status_anterior: statusAnterior,
           status_novo: novoStatus,
           alterado_por: usuario.pessoaId,
-          motivo: motivo?.trim() || 'Alteração realizada pela tela operacional',
+          motivo: 'Alteração realizada pela tela operacional',
         })
 
       if (historicoError) throw historicoError
@@ -851,27 +828,28 @@ export default function OperacoesPage({ usuario }: Props) {
   async function concluirExecucao() {
     if (!selecionada) return
 
+    const bloqueioAberto = bloqueios.some((x) => x.ativo)
+    const retrabalhoAberto = retrabalhos.some(
+      (x) => !['CORRIGIDO', 'CANCELADO'].includes(x.status)
+    )
+
+    if (bloqueioAberto) {
+      setMensagem(
+        'A execução possui bloqueio aberto. Resolva o bloqueio antes de concluir.'
+      )
+      return
+    }
+
+    if (retrabalhoAberto) {
+      setMensagem(
+        'A execução possui retrabalho pendente. Corrija antes de concluir.'
+      )
+      return
+    }
+
     if (!confirm('Concluir esta execução?')) return
 
-    try {
-      setMensagem('')
-
-      const { error } = await supabase.rpc('nexo_concluir_execucao', {
-        p_execucao_id: selecionada.id,
-      })
-
-      if (error) throw error
-
-      setMensagem('Execução concluída com sucesso.')
-      await carregarBase()
-      await carregarDetalhes(selecionada.id)
-    } catch (error: any) {
-      console.error(error)
-      setMensagem(
-        error?.message ||
-          'Não foi possível concluir. Verifique o checklist de conclusão.'
-      )
-    }
+    await alterarStatus('CONCLUIDA')
   }
 
   const resumo = useMemo(() => {
@@ -1634,12 +1612,16 @@ export default function OperacoesPage({ usuario }: Props) {
           </div>
 
           <div className="nexo-conclude-area">
-            <ChecklistConclusao
-              execucaoId={selecionada.id}
-              operacaoId={selecionada.operacao_id}
-              status={selecionada.status}
-              onConcluir={concluirExecucao}
-            />
+            <button
+              className="primary-button"
+              onClick={concluirExecucao}
+              disabled={
+                selecionada.status === 'CONCLUIDA' ||
+                selecionada.status === 'CANCELADA'
+              }
+            >
+              Concluir execução
+            </button>
           </div>
         </section>
       )}
