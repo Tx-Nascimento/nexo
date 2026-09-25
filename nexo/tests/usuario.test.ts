@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({ getUser: vi.fn(), from: vi.fn(), single: vi.fn() }))
 vi.mock('../src/lib/supabase', () => ({ supabase: { auth: { getUser: mock.getUser }, from: mock.from } }))
-import { buscarUsuarioAtual } from '../src/services/nexoService'
+import { atualizarAcesso, buscarUsuarioAtual } from '../src/services/nexoService'
 
 const registro = () => ({ pessoa_id: 'p1', ativo: true, pessoa: { nome: 'Teste', empresa_id: 'e1', ativo: true }, perfil: { nome: 'ADMIN' } })
 beforeEach(() => {
@@ -12,6 +12,11 @@ beforeEach(() => {
   mock.single.mockResolvedValue({ data: registro(), error: null })
 })
 describe('validação do usuário', () => {
+  it('não informa sucesso quando a atualização de acesso é negada pelo RLS', async () => {
+    const erro = { code: 'PGRST116', message: 'Nenhuma linha retornada' }
+    mock.from.mockReturnValue({ update: () => ({ eq: () => ({ select: () => ({ single: async () => ({ error: erro }) }) }) }) })
+    await expect(atualizarAcesso('u2', 'perfil', false)).rejects.toEqual(erro)
+  })
   it('retorna o perfil e a empresa associados ao usuário autenticado', async () => {
     expect(await buscarUsuarioAtual()).toEqual({ pessoaId: 'p1', empresaId: 'e1', nome: 'Teste', perfil: 'ADMIN' })
   })

@@ -1825,6 +1825,7 @@ export function PerfisPage({
       <div className="info-box">
         Pessoas podem existir no NEXO sem possuir login. Nesta tela
         administramos apenas usuários que já possuem acesso ao sistema.
+        Seu próprio acesso deve ser alterado por outro administrador.
       </div>
 
       {mensagem && <div className="system-message">{mensagem}</div>}
@@ -1853,6 +1854,7 @@ export function PerfisPage({
                     <select
                       className="table-select"
                       value={item.perfil_id}
+                      disabled={item.pessoa_id === usuario.pessoaId}
                       onChange={(e) =>
                         alterarPerfil(
                           item.id,
@@ -1871,6 +1873,7 @@ export function PerfisPage({
 
                   <td>
                     <button
+                      disabled={item.pessoa_id === usuario.pessoaId}
                       className={
                         item.ativo
                           ? 'table-action-button danger'

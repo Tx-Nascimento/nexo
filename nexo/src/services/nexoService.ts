@@ -532,6 +532,8 @@ export async function atualizarAcesso(
       updated_at: new Date().toISOString(),
     })
     .eq('id', usuarioId)
+    .select('id')
+    .single()
 
   if (error) throw error
 }

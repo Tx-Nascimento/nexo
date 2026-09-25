@@ -1,5 +1,9 @@
 # Sessão e acesso — etapa 1
 
+Atualização: o diagnóstico já foi recebido. Para a migração da etapa 2A,
+seguir `docs/etapa-2-acesso.md` e aplicar `sql/002_acesso_empresa.sql`
+antes de publicar o PR que inclui as alterações de administração de acessos.
+
 O frontend usa Supabase Auth com e-mail/senha. `src/lib/supabase.ts`
 cria o cliente compartilhado; URL e chave pública vêm de `VITE_SUPABASE_URL`
 e `VITE_SUPABASE_ANON_KEY`. Nunca colocar service_role em variáveis VITE.
