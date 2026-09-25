@@ -6,6 +6,7 @@ type Props = {
   pagina: Pagina
   navegar: (pagina: Pagina) => void
   sair: () => void
+  saindo?: boolean
   children: ReactNode
 }
 
@@ -14,6 +15,7 @@ export default function Layout({
   pagina,
   navegar,
   sair,
+  saindo = false,
   children,
 }: Props) {
   function ativo(...paginas: Pagina[]) {
@@ -105,8 +107,8 @@ export default function Layout({
           <div className="user-name">{usuario.nome}</div>
           <div className="user-role">{usuario.perfil}</div>
 
-          <button className="logout-button" onClick={sair}>
-            Sair
+          <button className="logout-button" onClick={sair} disabled={saindo}>
+            {saindo ? 'Saindo...' : 'Sair'}
           </button>
         </div>
       </aside>

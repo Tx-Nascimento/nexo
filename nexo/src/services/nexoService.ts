@@ -1,36 +1,45 @@
 import { supabase } from '../lib/supabase'
+import type { DadosUsuario } from '../types'
 
-export async function buscarUsuarioAtual() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+function primeiraRelacao<T>(valor: T | T[] | null): T | null {
+  return Array.isArray(valor) ? valor[0] ?? null : valor
+}
 
+export async function buscarUsuarioAtual(): Promise<DadosUsuario | null> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError) {
+    if (authError.name === 'AuthSessionMissingError') return null
+    throw new Error('Não foi possível validar a sessão. Verifique sua conexão e entre novamente.')
+  }
   if (!user) return null
 
   const { data, error } = await supabase
     .from('usuarios')
     .select(`
       pessoa_id,
-      pessoa:pessoas (
-        nome,
-        empresa_id
-      ),
-      perfil:perfis (
-        nome
-      )
+      ativo,
+      pessoa:pessoas (nome, empresa_id, ativo),
+      perfil:perfis (nome)
     `)
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
-  if (error) throw error
+  if (error) throw new Error('Não foi possível carregar seu acesso. Tente novamente ou contate o administrador.')
+  if (!data) throw new Error('Usuário sem acesso ao NEXO. Contate o administrador.')
+  if (data.ativo !== true) throw new Error('Seu acesso está desativado. Contate o administrador.')
 
-  const registro: any = data
+  const pessoa = primeiraRelacao(data.pessoa)
+  const perfil = primeiraRelacao(data.perfil)
+  if (!data.pessoa_id || !pessoa?.empresa_id || !pessoa.nome || !perfil?.nome) {
+    throw new Error('Seu cadastro de acesso está incompleto. Contate o administrador.')
+  }
+  if (pessoa.ativo !== true) throw new Error('Seu cadastro de pessoa está inativo. Contate o administrador.')
 
   return {
-    pessoaId: registro.pessoa_id,
-    empresaId: registro.pessoa.empresa_id,
-    nome: registro.pessoa.nome,
-    perfil: registro.perfil.nome,
+    pessoaId: data.pessoa_id,
+    empresaId: pessoa.empresa_id,
+    nome: pessoa.nome,
+    perfil: perfil.nome,
   }
 }
 
@@ -523,6 +532,8 @@ export async function atualizarAcesso(
       updated_at: new Date().toISOString(),
     })
     .eq('id', usuarioId)
+    .select('id')
+    .single()
 
   if (error) throw error
 }
