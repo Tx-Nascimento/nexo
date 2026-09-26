@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { DadosUsuario } from '../types'
 import ChecklistConclusao from '../components/ChecklistConclusao'
@@ -142,7 +142,13 @@ export default function OperacoesPage({ usuario }: Props) {
   const [operacoes, setOperacoes] = useState<Operacao[]>([])
   const [pessoas, setPessoas] = useState<Pessoa[]>([])
 
+  const [permissao, setPermissao] = useState<{ id: string; executar: boolean } | null>(null)
+  const detalheVersao = useRef(0)
+  const [revisao, setRevisao] = useState(0)
   const [selecionada, setSelecionada] = useState<Execucao | null>(null)
+
+  const encerrada = !!selecionada && ['CONCLUIDA', 'CANCELADA'].includes(selecionada.status)
+  const podeExecutar = permissao?.id === selecionada?.id && permissao?.executar === true && !encerrada
 
   const [dependencias, setDependencias] = useState<Dependencia[]>([])
   const [bloqueios, setBloqueios] = useState<Bloqueio[]>([])
@@ -268,6 +274,8 @@ export default function OperacoesPage({ usuario }: Props) {
   }
 
   async function carregarDetalhes(execucaoId: string) {
+    const versao = ++detalheVersao.current
+    setPermissao(null)
     try {
       const [
         dependenciasResponse,
@@ -275,6 +283,7 @@ export default function OperacoesPage({ usuario }: Props) {
         conferenciasResponse,
         aprovacoesResponse,
         retrabalhosResponse,
+        permissaoResponse,
       ] = await Promise.all([
         supabase
           .from('dependencias')
@@ -316,7 +325,13 @@ export default function OperacoesPage({ usuario }: Props) {
           `)
           .eq('execucao_id', execucaoId)
           .order('iniciado_em', { ascending: false }),
+        supabase.rpc('nexo_pode_executar', { p_execucao_id: execucaoId }),
       ])
+
+      if (versao !== detalheVersao.current) return
+      if (permissaoResponse.error) throw permissaoResponse.error
+      setPermissao({ id: execucaoId, executar: permissaoResponse.data === true })
+      setRevisao((valor) => valor + 1)
 
       if (dependenciasResponse.error) throw dependenciasResponse.error
       if (bloqueiosResponse.error) throw bloqueiosResponse.error
@@ -353,6 +368,8 @@ export default function OperacoesPage({ usuario }: Props) {
         })) as Retrabalho[]
       )
     } catch (error: any) {
+      if (versao !== detalheVersao.current) return
+      setPermissao(null)
       console.error(error)
       setMensagem(error?.message || 'Erro ao carregar detalhes.')
     }
@@ -433,7 +450,7 @@ export default function OperacoesPage({ usuario }: Props) {
   }
 
   async function alterarStatus(novoStatus: string) {
-    if (!selecionada) return
+    if (!selecionada || !podeExecutar) return
 
     if (novoStatus === 'CONCLUIDA') {
       await concluirExecucao()
@@ -483,6 +500,9 @@ export default function OperacoesPage({ usuario }: Props) {
         .from('execucoes')
         .update(atualizacao)
         .eq('id', selecionada.id)
+        .select('id')
+        .single()
+        .throwOnError()
 
       if (error) throw error
 
@@ -508,7 +528,7 @@ export default function OperacoesPage({ usuario }: Props) {
   }
 
   async function alterarProgresso(valor: number) {
-    if (!selecionada) return
+    if (!selecionada || !podeExecutar) return
 
     try {
       const percentual = Math.max(0, Math.min(100, valor))
@@ -520,6 +540,9 @@ export default function OperacoesPage({ usuario }: Props) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', selecionada.id)
+        .select('id')
+        .single()
+        .throwOnError()
 
       if (error) throw error
 
@@ -533,7 +556,7 @@ export default function OperacoesPage({ usuario }: Props) {
   async function criarDependencia(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!selecionada || !dependenciaMotivo.trim()) return
+    if (!selecionada || !podeExecutar || !dependenciaMotivo.trim()) return
 
     try {
       const { error } = await supabase.from('dependencias').insert({
@@ -565,7 +588,7 @@ export default function OperacoesPage({ usuario }: Props) {
   }
 
   async function finalizarDependencia(id: string) {
-    if (!selecionada) return
+    if (!selecionada || !podeExecutar) return
 
     try {
       const { error } = await supabase
@@ -576,6 +599,9 @@ export default function OperacoesPage({ usuario }: Props) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
+        .select('id')
+        .single()
+        .throwOnError()
 
       if (error) throw error
 
@@ -589,7 +615,7 @@ export default function OperacoesPage({ usuario }: Props) {
   async function criarBloqueio(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!selecionada || !bloqueioMotivo.trim()) return
+    if (!selecionada || !podeExecutar || !bloqueioMotivo.trim()) return
 
     try {
       const agora = new Date().toISOString()
@@ -612,6 +638,9 @@ export default function OperacoesPage({ usuario }: Props) {
             updated_at: agora,
           })
           .eq('id', selecionada.id)
+        .select('id')
+        .single()
+        .throwOnError()
 
         await supabase.from('execucao_status_historico').insert({
           execucao_id: selecionada.id,
@@ -635,7 +664,7 @@ export default function OperacoesPage({ usuario }: Props) {
   }
 
   async function resolverBloqueio(item: Bloqueio) {
-    if (!selecionada) return
+    if (!selecionada || !podeExecutar) return
 
     const resolucao = prompt('Informe como o bloqueio foi resolvido:')
 
@@ -651,6 +680,9 @@ export default function OperacoesPage({ usuario }: Props) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', item.id)
+        .select('id')
+        .single()
+        .throwOnError()
 
       if (error) throw error
 
@@ -665,7 +697,7 @@ export default function OperacoesPage({ usuario }: Props) {
   async function solicitarConferencia(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!selecionada || !conferenteId) return
+    if (!selecionada || !podeExecutar || !conferenteId) return
 
     try {
       const { error } = await supabase.from('conferencias').insert({
@@ -676,7 +708,9 @@ export default function OperacoesPage({ usuario }: Props) {
 
       if (error) throw error
 
-      await alterarStatus('AGUARDANDO_CONFERENCIA')
+      await carregarBase()
+      await carregarDetalhes(selecionada.id)
+      setMensagem('Solicitação registrada.')
       setConferenteId('')
     } catch (error: any) {
       console.error(error)
@@ -688,7 +722,7 @@ export default function OperacoesPage({ usuario }: Props) {
     item: Conferencia,
     resultado: 'APROVADA' | 'REJEITADA'
   ) {
-    if (!selecionada) return
+    if (!selecionada || encerrada || usuario.perfil === 'AUDITOR') return
 
     const observacao = prompt(
       resultado === 'REJEITADA'
@@ -696,6 +730,7 @@ export default function OperacoesPage({ usuario }: Props) {
         : 'Observação da conferência (opcional):'
     )
 
+    if (observacao === null) return
     if (resultado === 'REJEITADA' && !observacao?.trim()) return
 
     try {
@@ -708,12 +743,12 @@ export default function OperacoesPage({ usuario }: Props) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', item.id)
+        .select('id')
+        .single()
 
       if (error) throw error
 
-      if (resultado === 'APROVADA') {
-        await alterarStatus('EM_EXECUCAO')
-      }
+      setMensagem('Decisão registrada. O executor pode retomar a atividade.')
 
       await carregarDetalhes(selecionada.id)
     } catch (error: any) {
@@ -725,7 +760,7 @@ export default function OperacoesPage({ usuario }: Props) {
   async function solicitarAprovacao(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!selecionada || !aprovadorId) return
+    if (!selecionada || !podeExecutar || !aprovadorId) return
 
     try {
       const { error } = await supabase.from('aprovacoes').insert({
@@ -736,7 +771,9 @@ export default function OperacoesPage({ usuario }: Props) {
 
       if (error) throw error
 
-      await alterarStatus('AGUARDANDO_APROVACAO')
+      await carregarBase()
+      await carregarDetalhes(selecionada.id)
+      setMensagem('Solicitação registrada.')
       setAprovadorId('')
     } catch (error: any) {
       console.error(error)
@@ -748,7 +785,7 @@ export default function OperacoesPage({ usuario }: Props) {
     item: Aprovacao,
     status: 'APROVADA' | 'REJEITADA'
   ) {
-    if (!selecionada) return
+    if (!selecionada || encerrada || usuario.perfil === 'AUDITOR') return
 
     const observacao = prompt(
       status === 'REJEITADA'
@@ -756,6 +793,7 @@ export default function OperacoesPage({ usuario }: Props) {
         : 'Observação da aprovação (opcional):'
     )
 
+    if (observacao === null) return
     if (status === 'REJEITADA' && !observacao?.trim()) return
 
     try {
@@ -768,12 +806,12 @@ export default function OperacoesPage({ usuario }: Props) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', item.id)
+        .select('id')
+        .single()
 
       if (error) throw error
 
-      if (status === 'APROVADA') {
-        await alterarStatus('EM_EXECUCAO')
-      }
+      setMensagem('Decisão registrada. O executor pode retomar a atividade.')
 
       await carregarDetalhes(selecionada.id)
     } catch (error: any) {
@@ -787,6 +825,7 @@ export default function OperacoesPage({ usuario }: Props) {
 
     if (
       !selecionada ||
+      !podeExecutar ||
       !retrabalhoResponsavelId ||
       !retrabalhoMotivo.trim()
     ) {
@@ -827,7 +866,7 @@ export default function OperacoesPage({ usuario }: Props) {
   }
 
   async function concluirRetrabalho(item: Retrabalho) {
-    if (!selecionada) return
+    if (!selecionada || !podeExecutar) return
 
     try {
       const { error } = await supabase
@@ -838,6 +877,9 @@ export default function OperacoesPage({ usuario }: Props) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', item.id)
+        .select('id')
+        .single()
+        .throwOnError()
 
       if (error) throw error
 
@@ -849,7 +891,7 @@ export default function OperacoesPage({ usuario }: Props) {
   }
 
   async function concluirExecucao() {
-    if (!selecionada) return
+    if (!selecionada || !podeExecutar) return
 
     if (!confirm('Concluir esta execução?')) return
 
@@ -1142,7 +1184,7 @@ export default function OperacoesPage({ usuario }: Props) {
 
             <button
               className="secondary-button"
-              onClick={() => setSelecionada(null)}
+              onClick={() => { ++detalheVersao.current; setSelecionada(null); setPermissao(null) }}
             >
               Fechar
             </button>
@@ -1176,11 +1218,13 @@ export default function OperacoesPage({ usuario }: Props) {
             </div>
           </div>
 
+          {!podeExecutar && <p className="info-box">Consulta: responda apenas às etapas atribuídas a você. Alterações da execução dependem do executor.</p>}
           <div className="form-row">
             <div className="form-group">
               <label>Status</label>
 
               <select
+                disabled={!podeExecutar}
                 value={selecionada.status}
                 onChange={(e) => alterarStatus(e.target.value)}
               >
@@ -1197,6 +1241,7 @@ export default function OperacoesPage({ usuario }: Props) {
 
               <input
                 type="number"
+                disabled={!podeExecutar}
                 min="0"
                 max="100"
                 value={selecionada.percentual_conclusao}
@@ -1215,6 +1260,7 @@ export default function OperacoesPage({ usuario }: Props) {
             className="sector-form"
             onSubmit={criarDependencia}
           >
+            <fieldset disabled={!podeExecutar} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, width: "100%" }}>
             <div className="form-row">
               <div className="form-group">
                 <label>Tipo</label>
@@ -1305,6 +1351,7 @@ export default function OperacoesPage({ usuario }: Props) {
             <button className="primary-button">
               Registrar dependência
             </button>
+          </fieldset>
           </form>
 
           <div className="nexo-record-list">
@@ -1321,6 +1368,7 @@ export default function OperacoesPage({ usuario }: Props) {
                   {item.ativo ? (
                     <button
                       className="table-action-button success"
+                      disabled={!podeExecutar}
                       onClick={() =>
                         finalizarDependencia(item.id)
                       }
@@ -1343,6 +1391,7 @@ export default function OperacoesPage({ usuario }: Props) {
             className="sector-form"
             onSubmit={criarBloqueio}
           >
+            <fieldset disabled={!podeExecutar} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, width: "100%" }}>
             <div className="form-group">
               <label>Motivo do bloqueio</label>
 
@@ -1370,6 +1419,7 @@ export default function OperacoesPage({ usuario }: Props) {
             <button className="primary-button">
               Bloquear execução
             </button>
+          </fieldset>
           </form>
 
           <div className="nexo-record-list">
@@ -1383,6 +1433,7 @@ export default function OperacoesPage({ usuario }: Props) {
                 {item.ativo ? (
                   <button
                     className="table-action-button success"
+                    disabled={!podeExecutar}
                     onClick={() => resolverBloqueio(item)}
                   >
                     Resolver
@@ -1402,6 +1453,7 @@ export default function OperacoesPage({ usuario }: Props) {
             className="nexo-inline-form"
             onSubmit={solicitarConferencia}
           >
+            <fieldset disabled={!podeExecutar} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, width: "100%" }}>
             <select
               value={conferenteId}
               onChange={(e) =>
@@ -1421,6 +1473,7 @@ export default function OperacoesPage({ usuario }: Props) {
             <button className="primary-button">
               Solicitar conferência
             </button>
+          </fieldset>
           </form>
 
           <div className="nexo-record-list">
@@ -1433,7 +1486,7 @@ export default function OperacoesPage({ usuario }: Props) {
                   <p>{item.resultado}</p>
                 </div>
 
-                {item.resultado === 'PENDENTE' && (
+                {!encerrada && usuario.perfil !== 'AUDITOR' && item.conferente_id === usuario.pessoaId && item.resultado === 'PENDENTE' && (
                   <div className="table-actions">
                     <button
                       className="table-action-button success"
@@ -1466,6 +1519,7 @@ export default function OperacoesPage({ usuario }: Props) {
             className="nexo-inline-form"
             onSubmit={solicitarAprovacao}
           >
+            <fieldset disabled={!podeExecutar} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, width: "100%" }}>
             <select
               value={aprovadorId}
               onChange={(e) =>
@@ -1485,6 +1539,7 @@ export default function OperacoesPage({ usuario }: Props) {
             <button className="primary-button">
               Solicitar aprovação
             </button>
+          </fieldset>
           </form>
 
           <div className="nexo-record-list">
@@ -1497,7 +1552,7 @@ export default function OperacoesPage({ usuario }: Props) {
                   <p>{item.status}</p>
                 </div>
 
-                {item.status === 'PENDENTE' && (
+                {!encerrada && usuario.perfil !== 'AUDITOR' && item.aprovador_id === usuario.pessoaId && item.status === 'PENDENTE' && (
                   <div className="table-actions">
                     <button
                       className="table-action-button success"
@@ -1530,6 +1585,7 @@ export default function OperacoesPage({ usuario }: Props) {
             className="sector-form"
             onSubmit={criarRetrabalho}
           >
+            <fieldset disabled={!podeExecutar} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, width: "100%" }}>
             <div className="form-row">
               <div className="form-group">
                 <label>Responsável pela correção</label>
@@ -1600,6 +1656,7 @@ export default function OperacoesPage({ usuario }: Props) {
             <button className="primary-button">
               Registrar retrabalho
             </button>
+          </fieldset>
           </form>
 
           <div className="nexo-record-list">
@@ -1624,6 +1681,7 @@ export default function OperacoesPage({ usuario }: Props) {
                 ) && (
                   <button
                     className="table-action-button success"
+                    disabled={!podeExecutar}
                     onClick={() => concluirRetrabalho(item)}
                   >
                     Marcar corrigido
@@ -1639,6 +1697,8 @@ export default function OperacoesPage({ usuario }: Props) {
               operacaoId={selecionada.operacao_id}
               status={selecionada.status}
               onConcluir={concluirExecucao}
+              podeConcluir={podeExecutar}
+              revisao={revisao}
             />
           </div>
         </section>
