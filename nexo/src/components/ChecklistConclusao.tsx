@@ -5,6 +5,8 @@ type Props = {
   execucaoId: string
   operacaoId: string
   status: string
+  podeConcluir?: boolean
+  revisao?: number
   onConcluir: () => Promise<void> | void
 }
 
@@ -15,6 +17,7 @@ type Estado = {
   bloqueios: number
   dependencias: number
   retrabalhos: number
+  decisoesResolvidas: boolean
   conferenciaAprovada: boolean
   aprovacaoAprovada: boolean
   evidencias: number
@@ -27,6 +30,7 @@ const vazio: Estado = {
   bloqueios: 0,
   dependencias: 0,
   retrabalhos: 0,
+  decisoesResolvidas: false,
   conferenciaAprovada: false,
   aprovacaoAprovada: false,
   evidencias: 0,
@@ -37,6 +41,8 @@ export default function ChecklistConclusao({
   operacaoId,
   status,
   onConcluir,
+  podeConcluir = false,
+  revisao = 0,
 }: Props) {
   const [estado, setEstado] = useState<Estado>(vazio)
   const [carregando, setCarregando] = useState(true)
@@ -73,14 +79,14 @@ export default function ChecklistConclusao({
             .in('status', ['PENDENTE', 'EM_CORRECAO']),
           supabase
             .from('conferencias')
-            .select('id', { count: 'exact', head: true })
+            .select('id,resultado,created_at')
             .eq('execucao_id', execucaoId)
-            .eq('resultado', 'APROVADA'),
+            .order('created_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }),
           supabase
             .from('aprovacoes')
-            .select('id', { count: 'exact', head: true })
+            .select('id,status,created_at')
             .eq('execucao_id', execucaoId)
-            .eq('status', 'APROVADA'),
+            .order('created_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }),
           supabase
             .from('evidencias')
             .select('id', { count: 'exact', head: true })
@@ -100,8 +106,9 @@ export default function ChecklistConclusao({
           bloqueios: b.count || 0,
           dependencias: d.count || 0,
           retrabalhos: r.count || 0,
-          conferenciaAprovada: (c.count || 0) > 0,
-          aprovacaoAprovada: (a.count || 0) > 0,
+          conferenciaAprovada: c.data?.[0]?.resultado === 'APROVADA',
+          decisoesResolvidas: !c.data?.some((x) => x.resultado === 'PENDENTE') && !a.data?.some((x) => x.status === 'PENDENTE') && c.data?.[0]?.resultado !== 'REJEITADA' && a.data?.[0]?.status !== 'REJEITADA',
+          aprovacaoAprovada: a.data?.[0]?.status === 'APROVADA',
           evidencias: e.count || 0,
         })
       } catch (error: any) {
@@ -115,7 +122,7 @@ export default function ChecklistConclusao({
     return () => {
       ativo = false
     }
-  }, [execucaoId, operacaoId, status])
+  }, [execucaoId, operacaoId, status, revisao])
 
   const itens = useMemo(() => [
     {
@@ -132,6 +139,11 @@ export default function ChecklistConclusao({
       label: 'Sem retrabalho pendente',
       ok: estado.retrabalhos === 0,
       detalhe: estado.retrabalhos ? `${estado.retrabalhos} retrabalho(s) pendente(s)` : 'OK',
+    },
+    {
+      label: 'Decisões sem pendência ou rejeição',
+      ok: estado.decisoesResolvidas,
+      detalhe: estado.decisoesResolvidas ? 'OK' : 'Resolva as etapas solicitadas.',
     },
     {
       label: 'Conferência',
@@ -156,7 +168,7 @@ export default function ChecklistConclusao({
     },
   ], [estado])
 
-  const pronta = itens.every((x) => x.ok)
+  const pronta = !erro && itens.every((x) => x.ok)
   const encerrada = ['CONCLUIDA', 'CANCELADA'].includes(status)
 
   return (
@@ -196,7 +208,7 @@ export default function ChecklistConclusao({
       <button
         className="primary-button"
         onClick={onConcluir}
-        disabled={carregando || !pronta || encerrada}
+        disabled={!podeConcluir || carregando || !pronta || encerrada}
       >
         {encerrada ? 'Execução encerrada' : pronta ? 'Concluir execução' : 'Resolva as pendências para concluir'}
       </button>
