@@ -7,5 +7,5 @@ const PAGINAS_ADMIN: ReadonlySet<Pagina> = new Set([
 
 // Guarda de interface; a autorização dos dados continua dependendo do RLS.
 export function podeAbrirPagina(perfil: string, pagina: Pagina) {
-  return !PAGINAS_ADMIN.has(pagina) || perfil === 'ADMIN'
+  return !PAGINAS_ADMIN.has(pagina) || perfil === 'ADMIN' || (perfil === 'DIRETORIA' && ['administracao', 'setores', 'cargos', 'processos', 'cadastro-operacoes', 'responsabilidades', 'recorrencias'].includes(pagina))
 }

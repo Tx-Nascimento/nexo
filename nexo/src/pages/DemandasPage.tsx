@@ -1,3 +1,4 @@
+import GestaoAtividade from '../components/GestaoAtividade'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { DadosUsuario } from '../types'
@@ -182,12 +183,7 @@ function DemandasPage({ usuario }: Props) {
             ascending: false,
           }),
 
-        supabase
-          .from('pessoas')
-          .select('id,nome,setor_id')
-          .eq('empresa_id', usuario.empresaId)
-          .eq('ativo', true)
-          .order('nome'),
+        supabase.rpc('nexo_diretorio'),
 
         supabase
           .from('setores')
@@ -444,7 +440,7 @@ function DemandasPage({ usuario }: Props) {
         ? new Date(dataPrevista).toISOString()
         : null
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('demandas')
         .insert({
           empresa_id: usuario.empresaId,
@@ -466,21 +462,6 @@ function DemandasPage({ usuario }: Props) {
         .single()
 
       if (error) throw error
-
-      const { error: historicoError } =
-        await supabase
-          .from('demanda_status_historico')
-          .insert({
-            demanda_id: data.id,
-            status_anterior: null,
-            status_novo: 'ABERTA',
-            alterado_por: usuario.pessoaId,
-            motivo: 'Demanda criada',
-          })
-
-      if (historicoError) {
-        throw historicoError
-      }
 
       fecharFormulario()
 
@@ -525,6 +506,7 @@ function DemandasPage({ usuario }: Props) {
         string | number | null
       > = {
         status: novoStatus,
+        motivo_gestao: motivo || null,
         updated_at: new Date().toISOString(),
       }
 
@@ -551,24 +533,9 @@ function DemandasPage({ usuario }: Props) {
       const { error } = await supabase
         .from('demandas')
         .update(atualizacao)
-        .eq('id', demanda.id)
+        .eq('id', demanda.id).select('id').single()
 
       if (error) throw error
-
-      const { error: historicoError } =
-        await supabase
-          .from('demanda_status_historico')
-          .insert({
-            demanda_id: demanda.id,
-            status_anterior: demanda.status,
-            status_novo: novoStatus,
-            alterado_por: usuario.pessoaId,
-            motivo: motivo || null,
-          })
-
-      if (historicoError) {
-        throw historicoError
-      }
 
       await carregarDados()
       await carregarHistorico(demanda.id)
@@ -618,7 +585,7 @@ function DemandasPage({ usuario }: Props) {
           percentual_conclusao: valor,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', demanda.id)
+        .eq('id', demanda.id).select('id').single()
 
       if (error) throw error
 
@@ -677,87 +644,8 @@ function DemandasPage({ usuario }: Props) {
       setSalvando(true)
       setMensagem('')
 
-      const { data: execucao, error } =
-        await supabase
-          .from('execucoes')
-          .insert({
-            operacao_id: demanda.operacao_id,
-            responsavel_id:
-              demanda.responsavel_id,
-            titulo: demanda.titulo,
-            descricao: demanda.descricao,
-            status: 'NAO_INICIADA',
-            prioridade: demanda.prioridade,
-            data_prevista:
-              demanda.data_prevista,
-            percentual_conclusao: 0,
-          })
-          .select('id')
-          .single()
-
+      const { error } = await supabase.rpc('nexo_converter_demanda', { p_demanda: demanda.id })
       if (error) throw error
-
-      const { error: participanteError } =
-        await supabase
-          .from('execucao_participantes')
-          .insert({
-            execucao_id: execucao.id,
-            pessoa_id:
-              demanda.responsavel_id,
-            papel: 'RESPONSAVEL',
-            ativo: true,
-          })
-
-      if (participanteError) {
-        throw participanteError
-      }
-
-      const { error: execucaoHistoricoError } =
-        await supabase
-          .from('execucao_status_historico')
-          .insert({
-            execucao_id: execucao.id,
-            status_anterior: null,
-            status_novo: 'NAO_INICIADA',
-            alterado_por: usuario.pessoaId,
-            motivo: 'Execução criada a partir de demanda',
-          })
-
-      if (execucaoHistoricoError) {
-        throw execucaoHistoricoError
-      }
-
-      const { error: demandaError } =
-        await supabase
-          .from('demandas')
-          .update({
-            execucao_id: execucao.id,
-            status: 'EM_EXECUCAO',
-            data_inicio:
-              demanda.data_inicio ||
-              new Date().toISOString(),
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq('id', demanda.id)
-
-      if (demandaError) throw demandaError
-
-      const { error: historicoError } =
-        await supabase
-          .from('demanda_status_historico')
-          .insert({
-            demanda_id: demanda.id,
-            status_anterior: demanda.status,
-            status_novo: 'EM_EXECUCAO',
-            alterado_por: usuario.pessoaId,
-            motivo:
-              'Demanda transformada em execução operacional',
-          })
-
-      if (historicoError) {
-        throw historicoError
-      }
 
       setMensagem(
         'Demanda transformada em execução com sucesso.'
@@ -1384,6 +1272,7 @@ function DemandasPage({ usuario }: Props) {
             </div>
 
             <div className="nexo-demanda-detalhes">
+              <GestaoAtividade key={demandaSelecionada.id} usuario={usuario} tipo="demandas" registro={demandaSelecionada} atualizado={async () => { await carregarDados(); const { data, error } = await supabase.from('demandas').select('*').eq('id', demandaSelecionada.id).single(); if (error) throw error; setDemandaSelecionada(data as Demanda); await carregarHistorico(demandaSelecionada.id) }} />
               <div className="nexo-execution-summary">
                 <div>
                   <span>Status</span>

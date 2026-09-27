@@ -32,6 +32,8 @@ function App() {
   const [carregando, setCarregando] = useState(false)
   const { usuario, inicializando, erroAcesso, atualizarUsuario } = useUsuario()
   const [pagina, setPagina] = useState<Pagina>('central')
+  const [execucaoAlvo, setExecucaoAlvo] = useState<string | null>(null)
+  function abrirExecucao(id: string) { setExecucaoAlvo(id); setPagina('operacoes') }
   const requisicaoEmAndamento = useRef(false)
 
   async function entrar(e: React.FormEvent) {
@@ -80,22 +82,23 @@ function App() {
   }
 
   function navegar(destino: Pagina) {
+    setExecucaoAlvo(null)
     if (usuario && podeAbrirPagina(usuario.perfil, destino)) setPagina(destino)
   }
 
   function renderPagina() {
     if (!usuario) return null
     if (!podeAbrirPagina(usuario.perfil, pagina)) {
-      return <CentralPage usuario={usuario} navegar={navegar} />
+      return <CentralPage usuario={usuario} navegar={navegar} abrirExecucao={abrirExecucao} />
     }
     switch (pagina) {
-      case 'central': return <CentralPage usuario={usuario} navegar={navegar} />
-      case 'operacoes': return <OperacoesPage usuario={usuario} />
+      case 'central': return <CentralPage usuario={usuario} navegar={navegar} abrirExecucao={abrirExecucao} />
+      case 'operacoes': return <OperacoesPage usuario={usuario} execucaoInicialId={execucaoAlvo} />
       case 'demandas': return <DemandasPage usuario={usuario} />
       case 'processos-geral': return <ProcessosGeralPage usuario={usuario} />
       case 'pessoas-geral': return <PessoasGeralPage usuario={usuario} />
       case 'documentos': return <DocumentosPage usuario={usuario} />
-      case 'indicadores': return <IndicadoresPage usuario={usuario} />
+      case 'indicadores': return <IndicadoresPage usuario={usuario} navegar={navegar} abrirExecucao={abrirExecucao} />
       case 'administracao': return <AdministracaoPage usuario={usuario} navegar={navegar} />
       case 'empresas': return <EmpresasPage usuario={usuario} voltar={() => setPagina('administracao')} />
       case 'setores': return <SetoresPage usuario={usuario} voltar={() => setPagina('administracao')} />
@@ -106,7 +109,7 @@ function App() {
       case 'cadastro-operacoes': return <OperacoesCadastroPage usuario={usuario} voltar={() => setPagina('administracao')} />
       case 'responsabilidades': return <ResponsabilidadesPage usuario={usuario} voltar={() => setPagina('administracao')} />
       case 'recorrencias': return <RecorrenciasPage usuario={usuario} voltar={() => setPagina('administracao')} />
-      default: return <CentralPage usuario={usuario} navegar={navegar} />
+      default: return <CentralPage usuario={usuario} navegar={navegar} abrirExecucao={abrirExecucao} />
     }
   }
 

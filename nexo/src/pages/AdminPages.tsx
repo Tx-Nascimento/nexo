@@ -1,3 +1,5 @@
+import { podeAbrirPagina } from '../lib/acesso'
+import type { Pagina } from '../types'
 import { useEffect, useState } from 'react'
 import type {
   Cargo,
@@ -127,7 +129,7 @@ export function AdministracaoPage({
       />
 
       <section className="admin-grid">
-        {modulos.map(([titulo, descricao, pagina]) => (
+        {modulos.filter(([, , pagina]) => podeAbrirPagina(usuario.perfil, pagina as Pagina)).map(([titulo, descricao, pagina]) => (
           <button
             key={pagina}
             className="admin-card"
