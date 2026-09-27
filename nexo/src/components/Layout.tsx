@@ -37,7 +37,7 @@ export default function Layout({
             className={`menu-item ${ativo('central')}`}
             onClick={() => navegar('central')}
           >
-            Minha Central
+            {['ADMIN', 'DIRETORIA'].includes(usuario.perfil) ? 'Painel executivo' : 'Minha Central'}
           </button>
 
           <button
@@ -82,7 +82,7 @@ export default function Layout({
             Indicadores
           </button>
 
-          {usuario.perfil === 'ADMIN' && (
+          {['ADMIN', 'DIRETORIA'].includes(usuario.perfil) && (
             <button
               className={`menu-item ${ativo(
                 'administracao',

@@ -1,3 +1,4 @@
+import GestaoAtividade from '../components/GestaoAtividade'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { DadosUsuario } from '../types'
@@ -5,6 +6,7 @@ import ChecklistConclusao from '../components/ChecklistConclusao'
 
 type Props = {
   usuario: DadosUsuario
+  execucaoInicialId?: string | null
 }
 
 type Operacao = {
@@ -137,7 +139,7 @@ function estaAtrasada(execucao: Execucao) {
   return new Date(execucao.data_prevista).getTime() < Date.now()
 }
 
-export default function OperacoesPage({ usuario }: Props) {
+export default function OperacoesPage({ usuario, execucaoInicialId }: Props) {
   const [execucoes, setExecucoes] = useState<Execucao[]>([])
   const [operacoes, setOperacoes] = useState<Operacao[]>([])
   const [pessoas, setPessoas] = useState<Pessoa[]>([])
@@ -232,12 +234,7 @@ export default function OperacoesPage({ usuario }: Props) {
           .eq('ativo', true)
           .order('nome'),
 
-        supabase
-          .from('pessoas')
-          .select('id,nome,ativo')
-          .eq('empresa_id', usuario.empresaId)
-          .eq('ativo', true)
-          .order('nome'),
+        supabase.rpc('nexo_diretorio'),
       ])
 
       if (execResponse.error) throw execResponse.error
@@ -379,6 +376,17 @@ export default function OperacoesPage({ usuario }: Props) {
     carregarBase()
   }, [])
 
+  useEffect(() => {
+    if (!execucaoInicialId) return
+    let cancelado = false
+    supabase.from('execucoes').select('*').eq('id', execucaoInicialId).single().then(({ data, error }) => {
+      if (cancelado) return
+      if (error) setMensagem('Atividade indisponível no seu escopo.')
+      else void abrirExecucao(data as Execucao)
+    })
+    return () => { cancelado = true }
+  }, [execucaoInicialId])
+
   async function abrirExecucao(item: Execucao) {
     setSelecionada(item)
     await carregarDetalhes(item.id)
@@ -414,7 +422,7 @@ export default function OperacoesPage({ usuario }: Props) {
     }
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('execucoes')
         .insert({
           operacao_id: novaOperacaoId,
@@ -432,13 +440,6 @@ export default function OperacoesPage({ usuario }: Props) {
         .single()
 
       if (error) throw error
-
-      await supabase.from('execucao_participantes').insert({
-        execucao_id: data.id,
-        pessoa_id: novoResponsavelId,
-        papel: 'RESPONSAVEL',
-        ativo: true,
-      })
 
       setMostrarNova(false)
       setMensagem('Execução criada com sucesso.')
@@ -1190,6 +1191,7 @@ export default function OperacoesPage({ usuario }: Props) {
             </button>
           </div>
 
+          <GestaoAtividade key={selecionada.id} usuario={usuario} tipo="execucoes" registro={selecionada} atualizado={async () => { await carregarBase(); await carregarDetalhes(selecionada.id) }} />
           <div className="nexo-execution-summary">
             <div>
               <span>Status</span>
