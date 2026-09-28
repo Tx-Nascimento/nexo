@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import ModelosOperacionais from '../components/ModelosOperacionais'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { DadosUsuario } from '../types'
 
@@ -6,9 +7,11 @@ type Props = { usuario: DadosUsuario }
 type Setor = { id: string; nome: string }
 type Pessoa = { id: string; nome: string }
 type Processo = { id: string; nome: string }
-type Operacao = { id: string; nome: string }
+type Operacao = { id: string; nome: string; setor_id: string | null }
 type Documento = {
   id: string
+  setor_id: string | null
+  vinculos: { operacao_id: string | null; processo_id: string | null }[]
   titulo: string
   descricao: string | null
   tipo: string
@@ -39,10 +42,13 @@ export default function DocumentosPage({ usuario }: Props) {
   const [pessoas, setPessoas] = useState<Pessoa[]>([])
   const [processos, setProcessos] = useState<Processo[]>([])
   const [operacoes, setOperacoes] = useState<Operacao[]>([])
-  const [aba, setAba] = useState<'documentos' | 'procedimentos' | 'evidencias'>('documentos')
+  const [aba, setAba] = useState<'documentos' | 'procedimentos' | 'evidencias' | 'modelos'>('documentos')
   const [execucoes, setExecucoes] = useState<Execucao[]>([])
   const [evidencias, setEvidencias] = useState<Evidencia[]>([])
   const [mensagem, setMensagem] = useState('')
+  const [buscaRepositorio, setBuscaRepositorio] = useState('')
+  const [setorFiltro, setSetorFiltro] = useState('')
+  const [operacaoFiltro, setOperacaoFiltro] = useState('')
 
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
@@ -72,12 +78,12 @@ export default function DocumentosPage({ usuario }: Props) {
   async function carregar() {
     try {
       const [d, pr, s, pe, p, o, ex, ev] = await Promise.all([
-        supabase.from('documentos').select('id,titulo,descricao,tipo,arquivo_url,link_externo,created_at,ativo,setor:setores(nome),pessoa:pessoas(nome)').eq('empresa_id', usuario.empresaId).eq('ativo', true).order('created_at', { ascending: false }),
+        supabase.from('documentos').select('id,setor_id,vinculos:documento_vinculos(operacao_id,processo_id),titulo,descricao,tipo,arquivo_url,link_externo,created_at,ativo,setor:setores(nome),pessoa:pessoas(nome)').eq('empresa_id', usuario.empresaId).eq('ativo', true).order('created_at', { ascending: false }),
         supabase.from('procedimentos').select('id,operacao_id,titulo,descricao,versao_atual,ativo,operacao:operacoes!inner(nome,empresa_id)').eq('operacao.empresa_id', usuario.empresaId).eq('ativo', true).order('titulo'),
         supabase.from('setores').select('id,nome').eq('empresa_id', usuario.empresaId).eq('ativo', true).order('nome'),
         supabase.from('pessoas').select('id,nome').eq('empresa_id', usuario.empresaId).eq('ativo', true).order('nome'),
         supabase.from('processos').select('id,nome').eq('empresa_id', usuario.empresaId).eq('ativo', true).order('nome'),
-        supabase.from('operacoes').select('id,nome').eq('empresa_id', usuario.empresaId).eq('ativo', true).order('nome'),
+        supabase.from('operacoes').select('id,nome,setor_id').eq('empresa_id', usuario.empresaId).eq('ativo', true).order('nome'),
         supabase.from('execucoes').select('id,titulo,operacao:operacoes!inner(empresa_id)').eq('operacao.empresa_id', usuario.empresaId).order('created_at', { ascending: false }),
         supabase.from('evidencias').select('id,execucao_id,tipo,titulo,descricao,valor_texto,arquivo_url,obrigatoria,created_at,execucao:execucoes!inner(titulo,operacao:operacoes!inner(empresa_id))').eq('execucao.operacao.empresa_id', usuario.empresaId).order('created_at', { ascending: false }),
       ])
@@ -250,36 +256,36 @@ export default function DocumentosPage({ usuario }: Props) {
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
   }
 
-  const porTipo = useMemo(() => documentos.reduce<Record<string, number>>((acc, x) => { acc[x.tipo] = (acc[x.tipo] || 0) + 1; return acc }, {}), [documentos])
+
 
   return (
     <>
       <header className="topbar"><div><h1>Documentos</h1><p>Repositório, procedimentos e conhecimento operacional.</p></div><div className="topbar-user">{usuario.nome}</div></header>
       {mensagem && <div className="system-message">{mensagem}</div>}
-      <div className="nexo-tabs"><button className={aba === 'documentos' ? 'active' : ''} onClick={() => setAba('documentos')}>Documentos</button><button className={aba === 'procedimentos' ? 'active' : ''} onClick={() => setAba('procedimentos')}>Procedimentos</button><button className={aba === 'evidencias' ? 'active' : ''} onClick={() => setAba('evidencias')}>Evidências</button></div>
+      <div className="nexo-tabs"><button className={aba === 'documentos' ? 'active' : ''} onClick={() => setAba('documentos')}>Documentos</button><button className={aba === 'procedimentos' ? 'active' : ''} onClick={() => setAba('procedimentos')}>Procedimentos</button><button className={aba === 'evidencias' ? 'active' : ''} onClick={() => setAba('evidencias')}>Evidências</button><button className={aba === 'modelos' ? 'active' : ''} onClick={() => setAba('modelos')}>Modelos prontos</button></div>
 
-      {aba === 'documentos' ? (
+      {aba === 'modelos' ? <ModelosOperacionais /> : aba === 'documentos' ? (
         <>
-          <section className="cards-grid"><div className="status-card"><span className="card-label">Documentos ativos</span><strong className="card-value">{documentos.length}</strong></div><div className="status-card"><span className="card-label">Procedimentos</span><strong className="card-value">{porTipo.PROCEDIMENTO || 0}</strong></div><div className="status-card"><span className="card-label">Planilhas</span><strong className="card-value">{porTipo.PLANILHA || 0}</strong></div><div className="status-card"><span className="card-label">Manuais</span><strong className="card-value">{porTipo.MANUAL || 0}</strong></div></section>
-          <section className="panel nexo-form-panel"><div className="panel-header"><h3>Novo documento</h3><p>O arquivo é armazenado no repositório privado do NEXO.</p></div><form className="sector-form" onSubmit={criarDocumento}>
+
+          <details className="panel nexo-form-panel"><summary className="panel-header">+ Adicionar documento ao repositório</summary><div className="panel-header"><h3>Novo documento</h3><p>O arquivo é armazenado no repositório privado do NEXO.</p></div><form className="sector-form" onSubmit={criarDocumento}>
             <div className="form-row"><div className="form-group"><label>Título</label><input value={titulo} onChange={(e) => setTitulo(e.target.value)} required /></div><div className="form-group"><label>Tipo</label><select value={tipo} onChange={(e) => setTipo(e.target.value)}>{TIPOS.map((x) => <option key={x}>{x}</option>)}</select></div></div>
             <div className="form-group"><label>Descrição</label><textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3} /></div>
             <div className="form-row"><div className="form-group"><label>Setor</label><select value={setorId} onChange={(e) => setSetorId(e.target.value)}><option value="">Empresa</option>{setores.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></div><div className="form-group"><label>Pessoa</label><select value={pessoaId} onChange={(e) => setPessoaId(e.target.value)}><option value="">Sem pessoa específica</option>{pessoas.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></div></div>
             <div className="form-row"><div className="form-group"><label>Processo</label><select value={processoId} onChange={(e) => setProcessoId(e.target.value)}><option value="">Sem vínculo</option>{processos.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></div><div className="form-group"><label>Operação</label><select value={operacaoId} onChange={(e) => setOperacaoId(e.target.value)}><option value="">Sem vínculo</option>{operacoes.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></div></div>
             <div className="form-row"><div className="form-group"><label>Arquivo</label><input type="file" onChange={(e) => setArquivo(e.target.files?.[0] || null)} /></div><div className="form-group"><label>Link externo</label><input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." /></div></div>
             <div className="form-actions"><button className="table-action-button success" type="submit">Salvar documento</button></div>
-          </form></section>
-          <section className="panel"><div className="panel-header"><h3>Repositório</h3><p>Arquivos da empresa, setores e pessoas.</p></div><div className="table-wrapper"><table className="operations-table"><thead><tr><th>Título</th><th>Tipo</th><th>Setor</th><th>Pessoa</th><th>Data</th><th></th></tr></thead><tbody>{documentos.map((doc) => <tr key={doc.id}><td><strong>{doc.titulo}</strong><div className="nexo-muted">{doc.descricao || ''}</div></td><td>{doc.tipo}</td><td>{doc.setor?.nome || 'Empresa'}</td><td>{doc.pessoa?.nome || '-'}</td><td>{new Date(doc.created_at).toLocaleDateString('pt-BR')}</td><td><button className="table-action-button" onClick={() => abrirDocumento(doc)} disabled={!doc.arquivo_url && !doc.link_externo}>Abrir</button></td></tr>)}</tbody></table></div></section>
+          </form></details>
+          <section className="panel"><div className="panel-header"><h3>Repositório</h3><p>Arquivos da empresa, setores e pessoas.</p></div><div className="op-panel op-filter-strip"><label>Buscar documento<input value={buscaRepositorio} onChange={e=>setBuscaRepositorio(e.target.value)} placeholder="Título ou descrição"/></label><label>Setor<select value={setorFiltro} onChange={e=>{setSetorFiltro(e.target.value);setOperacaoFiltro('')}}><option value="">Todos</option>{setores.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}</select></label><label>Operação<select value={operacaoFiltro} onChange={e=>setOperacaoFiltro(e.target.value)}><option value="">Todas</option>{operacoes.filter(o=>!setorFiltro || o.setor_id===setorFiltro).map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}</select></label></div><div className="table-wrapper"><table className="operations-table"><thead><tr><th>Título</th><th>Tipo</th><th>Setor</th><th>Pessoa</th><th>Data</th><th></th></tr></thead><tbody>{documentos.filter(doc => (!setorFiltro || doc.setor_id === setorFiltro) && (!operacaoFiltro || doc.vinculos?.some(v => v.operacao_id === operacaoFiltro)) && `${doc.titulo} ${doc.descricao || ''}`.toLocaleLowerCase('pt-BR').includes(buscaRepositorio.toLocaleLowerCase('pt-BR'))).map((doc) => <tr key={doc.id}><td><strong>{doc.titulo}</strong><div className="nexo-muted">{doc.descricao || ''}</div></td><td>{doc.tipo}</td><td>{doc.setor?.nome || 'Empresa'}</td><td>{doc.pessoa?.nome || '-'}</td><td>{new Date(doc.created_at).toLocaleDateString('pt-BR')}</td><td><button className="table-action-button" onClick={() => abrirDocumento(doc)} disabled={!doc.arquivo_url && !doc.link_externo}>Abrir</button></td></tr>)}</tbody></table></div></section>
         </>
       ) : aba === 'procedimentos' ? (
         <>
-          <section className="panel nexo-form-panel"><div className="panel-header"><h3>Novo procedimento</h3><p>Padronize como uma operação deve ser executada.</p></div><form className="sector-form" onSubmit={criarProcedimento}><div className="form-row"><div className="form-group"><label>Operação</label><select value={procOperacaoId} onChange={(e) => setProcOperacaoId(e.target.value)} required><option value="">Selecione</option>{operacoes.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></div><div className="form-group"><label>Título</label><input value={procTitulo} onChange={(e) => setProcTitulo(e.target.value)} required /></div></div><div className="form-group"><label>Descrição</label><textarea rows={3} value={procDescricao} onChange={(e) => setProcDescricao(e.target.value)} /></div><div className="form-actions"><button className="table-action-button success">Criar procedimento</button></div></form></section>
+          <details className="panel nexo-form-panel"><summary className="panel-header">+ Criar procedimento</summary><div className="panel-header"><h3>Novo procedimento</h3><p>Padronize como uma operação deve ser executada.</p></div><form className="sector-form" onSubmit={criarProcedimento}><div className="form-row"><div className="form-group"><label>Operação</label><select value={procOperacaoId} onChange={(e) => setProcOperacaoId(e.target.value)} required><option value="">Selecione</option>{operacoes.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select></div><div className="form-group"><label>Título</label><input value={procTitulo} onChange={(e) => setProcTitulo(e.target.value)} required /></div></div><div className="form-group"><label>Descrição</label><textarea rows={3} value={procDescricao} onChange={(e) => setProcDescricao(e.target.value)} /></div><div className="form-actions"><button className="table-action-button success">Criar procedimento</button></div></form></details>
           <section className="panel"><div className="panel-header"><h3>Procedimentos</h3></div><div className="table-wrapper"><table className="operations-table"><thead><tr><th>Procedimento</th><th>Operação</th><th>Versão</th><th></th></tr></thead><tbody>{procedimentos.map((p) => <tr key={p.id}><td><strong>{p.titulo}</strong></td><td>{p.operacao?.nome || '-'}</td><td>{p.versao_atual}</td><td><button className="table-action-button" onClick={() => abrirProcedimento(p)}>Etapas</button></td></tr>)}</tbody></table></div></section>
           {procedimentoSelecionado && <section className="panel"><div className="panel-header"><h3>{procedimentoSelecionado.titulo}</h3><p>Versão {procedimentoSelecionado.versao_atual}</p></div><div className="nexo-record-list nexo-pad">{etapas.map((e) => <div className="nexo-record" key={e.id}><div><strong>{e.ordem}. {e.titulo}</strong><p>{e.descricao || ''}</p></div><span>{e.obrigatoria ? 'Obrigatória' : 'Opcional'}</span></div>)}</div><form className="sector-form" onSubmit={adicionarEtapa}><div className="form-row"><div className="form-group"><label>Nova etapa</label><input value={etapaTitulo} onChange={(e) => setEtapaTitulo(e.target.value)} required /></div><div className="form-group"><label>Descrição</label><input value={etapaDescricao} onChange={(e) => setEtapaDescricao(e.target.value)} /></div></div><div className="form-actions"><button className="table-action-button success">Adicionar etapa</button></div></form></section>}
         </>
       ) : (
         <>
-          <section className="panel nexo-form-panel"><div className="panel-header"><h3>Nova evidência</h3><p>Comprove uma execução com arquivo, texto, link ou número de documento.</p></div><form className="sector-form" onSubmit={criarEvidencia}><div className="form-row"><div className="form-group"><label>Execução</label><select value={evidenciaExecucaoId} onChange={(e) => setEvidenciaExecucaoId(e.target.value)} required><option value="">Selecione</option>{execucoes.map((x) => <option key={x.id} value={x.id}>{x.titulo}</option>)}</select></div><div className="form-group"><label>Tipo</label><select value={evidenciaTipo} onChange={(e) => setEvidenciaTipo(e.target.value)}>{TIPOS_EVIDENCIA.map((x) => <option key={x}>{x}</option>)}</select></div></div><div className="form-row"><div className="form-group"><label>Título</label><input value={evidenciaTitulo} onChange={(e) => setEvidenciaTitulo(e.target.value)} /></div><div className="form-group"><label>Valor / link / nº documento</label><input value={evidenciaValor} onChange={(e) => setEvidenciaValor(e.target.value)} /></div></div><div className="form-group"><label>Descrição</label><textarea rows={3} value={evidenciaDescricao} onChange={(e) => setEvidenciaDescricao(e.target.value)} /></div><div className="form-group"><label>Arquivo</label><input type="file" onChange={(e) => setEvidenciaArquivo(e.target.files?.[0] || null)} /></div><div className="form-actions"><button className="table-action-button success">Registrar evidência</button></div></form></section>
+          <details className="panel nexo-form-panel"><summary className="panel-header">+ Registrar evidência</summary><div className="panel-header"><h3>Nova evidência</h3><p>Comprove uma execução com arquivo, texto, link ou número de documento.</p></div><form className="sector-form" onSubmit={criarEvidencia}><div className="form-row"><div className="form-group"><label>Execução</label><select value={evidenciaExecucaoId} onChange={(e) => setEvidenciaExecucaoId(e.target.value)} required><option value="">Selecione</option>{execucoes.map((x) => <option key={x.id} value={x.id}>{x.titulo}</option>)}</select></div><div className="form-group"><label>Tipo</label><select value={evidenciaTipo} onChange={(e) => setEvidenciaTipo(e.target.value)}>{TIPOS_EVIDENCIA.map((x) => <option key={x}>{x}</option>)}</select></div></div><div className="form-row"><div className="form-group"><label>Título</label><input value={evidenciaTitulo} onChange={(e) => setEvidenciaTitulo(e.target.value)} /></div><div className="form-group"><label>Valor / link / nº documento</label><input value={evidenciaValor} onChange={(e) => setEvidenciaValor(e.target.value)} /></div></div><div className="form-group"><label>Descrição</label><textarea rows={3} value={evidenciaDescricao} onChange={(e) => setEvidenciaDescricao(e.target.value)} /></div><div className="form-group"><label>Arquivo</label><input type="file" onChange={(e) => setEvidenciaArquivo(e.target.files?.[0] || null)} /></div><div className="form-actions"><button className="table-action-button success">Registrar evidência</button></div></form></details>
           <section className="panel"><div className="panel-header"><h3>Evidências registradas</h3></div><div className="table-wrapper"><table className="operations-table"><thead><tr><th>Execução</th><th>Tipo</th><th>Título</th><th>Data</th><th></th></tr></thead><tbody>{evidencias.map((ev) => <tr key={ev.id}><td><strong>{ev.execucao?.titulo || ev.execucao_id}</strong></td><td>{ev.tipo}</td><td>{ev.titulo || ev.valor_texto || '-'}</td><td>{new Date(ev.created_at).toLocaleString('pt-BR')}</td><td><button className="table-action-button" disabled={!ev.arquivo_url} onClick={() => abrirEvidencia(ev)}>Abrir arquivo</button></td></tr>)}</tbody></table></div></section>
         </>
       )}
