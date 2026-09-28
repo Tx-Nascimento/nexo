@@ -55,7 +55,7 @@ it('mantém a tela e informa erro quando o logout falha', async () => {
   mock.estado.usuario = { pessoaId: 'p1', empresaId: 'e1', nome: 'Teste', perfil: 'EXECUTOR' }
   mock.sair.mockResolvedValue({ error: new Error('network') })
   await render()
-  await act(async () => { container.querySelector<HTMLButtonElement>('.logout-button')!.click() })
+  await act(async () => { container.querySelector<HTMLButtonElement>('.nexo-signout')!.click() })
   expect(container.textContent).toContain('Central disponível')
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Não foi possível sair')
   expect(mock.atualizar).not.toHaveBeenCalled()
